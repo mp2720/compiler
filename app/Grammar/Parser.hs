@@ -2,7 +2,17 @@ module Parser
   ( Position (..),
     State (..),
     ParserResult,
+    Parser,
     try,
+    lookAhead,
+    notFollowedBy,
+    mapChar,
+    satisfy,
+    char,
+    string,
+    mkState,
+    sourcePos,
+    failParser
   )
 where
 
@@ -16,6 +26,7 @@ data Position = Position
     positionLine :: !Int,
     positionColumn :: !Int
   }
+  deriving (Show)
 
 instance Eq Position where
   -- It only makes sense to compare positions in the same input.
@@ -26,6 +37,7 @@ data State = State
     statePosition :: Position,
     stateTabSize :: Int
   }
+  deriving (Show)
 
 type ParserResult v = Either State (v, State)
 
@@ -98,16 +110,28 @@ nextCharState s@(State (c : cs) pos tabLen) =
     line = positionLine pos
     column = positionColumn pos
 
-satisfy :: (Char -> Bool) -> Parser Char
-satisfy predicate = Parser $ \s ->
+mapChar :: (Char -> Maybe a) -> Parser a
+mapChar f = Parser $ \s ->
   case stateInput s of
     [] -> Left s
-    x : _
-      | predicate x -> Right (x, nextCharState s)
-      | otherwise -> Left s
+    x : _ -> case f x of
+      Just a -> Right (a, nextCharState s)
+      Nothing -> Left s
+
+satisfy :: (Char -> Bool) -> Parser Char
+satisfy predicate = mapChar $ \c -> if predicate c then Just c else Nothing
 
 char :: Char -> Parser Char
 char c = satisfy (== c)
 
 string :: String -> Parser String
 string = traverse char
+
+mkState :: String -> State
+mkState input = State input (Position 0 1 1) 8
+
+sourcePos :: Parser Position
+sourcePos = Parser $ \s -> Right (statePosition s, s)
+
+failParser :: Parser a
+failParser = Parser $ \s -> Left s
