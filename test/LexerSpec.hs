@@ -1,7 +1,7 @@
 module LexerSpec (spec) where
 
 import Control.Applicative (Alternative (many))
-import Grammar.Combinators (runParser)
+import Grammar.Combinators (eof, runParser)
 import Grammar.Lexer
 import Test.Hspec
 
@@ -16,7 +16,7 @@ spec =
     it "identifiers and literals" $ do
       rl ident "abc__123_.b" `shouldBe` Right "abc__123_"
       rl ident "_" `shouldBe` Right "_"
-      rl (many literal) "1 00000_0 09 14 0xA1_bAf_e 0b1____100" `shouldBe` Right [1, 0, 9, 14, 0xA1BAFE, 12]
+      rl (many literal <* eof) "1 00000_0 09 14 0xA1_bAf_e 0b1____100 " `shouldBe` Right [1, 0, 9, 14, 0xA1BAFE, 12]
       rl literal "\t \t0o18" `shouldBe` Left (Position 6 1 19)
       rl literal "001a" `shouldBe` Left (Position 3 1 4)
       rl literal "001_" `shouldBe` Left (Position 4 1 5)
@@ -48,6 +48,7 @@ spec =
             <*> ident
             <* operator "/"
             <* operator "*"
+            <* eof
         )
         "a/******//*\n\n* /\n// */b/**// *"
         `shouldBe` Right ("a", "b")
