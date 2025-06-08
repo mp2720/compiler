@@ -1,6 +1,6 @@
 module LexerSpec (spec) where
 
-import Control.Applicative (Alternative (many))
+import Control.Applicative (Alternative (many, (<|>)))
 import Grammar.Combinators (eof, runParser)
 import Grammar.Lexer
 import Test.Hspec
@@ -17,14 +17,14 @@ spec =
       rl ident "abc__123_.b" `shouldBe` Right "abc__123_"
       rl ident "_" `shouldBe` Right "_"
       rl (many literal <* eof) "1 00000_0 09 14 0xA1_bAf_e 0b1____100 " `shouldBe` Right [1, 0, 9, 14, 0xA1BAFE, 12]
-      rl literal "\t \t0o18" `shouldBe` Left (Position 6 1 19)
-      rl literal "001a" `shouldBe` Left (Position 3 1 4)
-      rl literal "001_" `shouldBe` Left (Position 4 1 5)
-      rl literal "0x_01/" `shouldBe` Left (Position 2 1 3)
-      rl ident "do" `shouldBe` Left (Position 2 1 3)
+      rl literal "\t \t0o18" `shouldBe` Left (Position 3 1 16)
+      rl literal "001a" `shouldBe` Left (Position 0 1 1)
+      rl literal "001_" `shouldBe` Left (Position 0 1 1)
+      rl literal "0x_01/" `shouldBe` Left (Position 0 1 1)
+      rl ident "do" `shouldBe` Left (Position 0 1 1)
     it "identifiers and keywords" $ do
-      rl (keyword "if") "if" `shouldBe` Right ()
-      rl (keyword "if") "if_" `shouldBe` Left (Position 3 1 4)
+      rl (keyword "if") "if(" `shouldBe` Right ()
+      rl (keyword "if") "if_" `shouldBe` Left (Position 0 1 1)
       rl ident "if_" `shouldBe` Right "if_"
     it "operators" $ do
       rl (operator ">=") ">=" `shouldBe` Right ()
@@ -39,7 +39,8 @@ spec =
         )
         "a+--b"
         `shouldBe` Right ("a", (), (), (), "b")
-      rl (operator "~") "~>" `shouldBe` Left (Position 2 1 3)
+      rl (operator "~") "~>" `shouldBe` Left (Position 0 1 1)
+      rl (("**" <$ operator "**") <|> ("*" <$ operator "*") <|> ("~" <$ operator "~")) "~" `shouldBe` Right "~"
     it "comments" $ do
       rl ((,) <$> ident <*> ident) "    a//bc\n//\nd/   //e   " `shouldBe` Right ("a", "d")
       rl

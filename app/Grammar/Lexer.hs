@@ -72,7 +72,7 @@ sourcePos :: StringParser Position
 sourcePos = Parser $ \s -> Right (lexerPosition s, s)
 
 lexeme :: StringParser a -> StringParser a
-lexeme p = ignore *> p <* ignore
+lexeme p = ignore *> try p <* ignore
 
 ignore :: StringParser ()
 ignore = void $ many (void (satisfy isSpace) <|> void lineComment <|> void multilineComment)
