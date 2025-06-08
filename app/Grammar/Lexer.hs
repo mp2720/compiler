@@ -1,16 +1,24 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Grammar.Lexer (operator, ident, literal, keyword, sourcePos, Position (..), LexerState (..), Lexer, LexerResult) where
+module Grammar.Lexer
+  ( operator,
+    ident,
+    literal,
+    keyword,
+    sourcePos,
+    Position (..),
+    LexerState (..),
+    StringParser,
+  )
+where
 
 import Control.Applicative (Alternative (many, (<|>)), asum)
+import Control.Monad (unless)
 import Data.Char (isAlpha, isDigit, isSpace, toLower)
 import Data.Function (on)
 import Data.Functor (void)
 import Data.List (elemIndex)
-import Grammar.Combinators (Parser (..), ParserResult, State (..), failParser, mapTerm, notFollowedBy, satisfy, try)
-import Control.Monad (unless)
+import Grammar.Combinators (Parser (..), State (..), failParser, mapTerm, notFollowedBy, satisfy, try)
 
 data Position = Position
   { positionOffset :: Int,
@@ -52,23 +60,21 @@ instance State LexerState where
       line = positionLine pos
       column = positionColumn pos
 
-type Lexer = Parser LexerState
+type StringParser = Parser LexerState
 
-type LexerResult v = ParserResult LexerState v
-
-char :: Char -> Lexer Char
+char :: Char -> StringParser Char
 char c = satisfy (== c)
 
-string :: String -> Lexer String
+string :: String -> StringParser String
 string = traverse char
 
-sourcePos :: Lexer Position
+sourcePos :: StringParser Position
 sourcePos = Parser $ \s -> Right (lexerPosition s, s)
 
-lexeme :: Lexer a -> Lexer a
+lexeme :: StringParser a -> StringParser a
 lexeme p = ignore *> p <* ignore
 
-ignore :: Lexer ()
+ignore :: StringParser ()
 ignore = void $ many (void (satisfy isSpace) <|> void lineComment <|> void multilineComment)
   where
     -- '//' (^'\n')*
@@ -79,7 +85,7 @@ ignore = void $ many (void (satisfy isSpace) <|> void lineComment <|> void multi
         -- '*/' | . rest
         rest = try (string "*/") <|> (:) <$> satisfy (const True) <*> rest
 
-operator :: String -> Lexer ()
+operator :: String -> StringParser ()
 operator expected =
   lexeme $
     asum
@@ -124,21 +130,21 @@ operator expected =
       p <- try $ string s
       unless (p == expected) failParser
 
-identFirstCh :: Lexer Char
+identFirstCh :: StringParser Char
 identFirstCh = char '_' <|> satisfy isAlpha
 
-identFollowingCh :: Lexer Char
+identFollowingCh :: StringParser Char
 identFollowingCh = identFirstCh <|> satisfy isDigit
 
-identOrKeyword :: Lexer String
+identOrKeyword :: StringParser String
 identOrKeyword = (:) <$> identFirstCh <*> many identFollowingCh
 
-ident :: Lexer String
+ident :: StringParser String
 ident = lexeme $ do
   i <- identOrKeyword
   if isKeyword i then failParser else return i
 
-keyword :: String -> Lexer ()
+keyword :: String -> StringParser ()
 keyword expected = lexeme $ do
   i <- identOrKeyword
   unless (isKeyword i && i == expected) failParser
@@ -164,10 +170,10 @@ isKeyword =
       ]
   )
 
-digit :: String -> Lexer Integer
+digit :: String -> StringParser Integer
 digit digits = toInteger <$> mapTerm (\c -> toLower c `elemIndex` digits)
 
-literal :: Lexer Integer
+literal :: StringParser Integer
 literal = lexeme $ lit' <* notFollowedBy identFollowingCh
   where
     lit' = (char '0' *> (hex <|> oct <|> bin <|> num' decDigits 10 0)) <|> num decDigits 10

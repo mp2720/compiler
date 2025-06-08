@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-
 module LexerSpec (spec) where
 
 import Control.Applicative (Alternative (many))
@@ -8,7 +5,7 @@ import Grammar.Combinators (runParser)
 import Grammar.Lexer
 import Test.Hspec
 
-rl :: Lexer v -> String -> Either Position v
+rl :: StringParser v -> String -> Either Position v
 rl lexer s = case runParser lexer (LexerState s (Position 0 1 1) 8) of
   Left state -> Left $ lexerPosition state
   Right (v, _) -> Right v
