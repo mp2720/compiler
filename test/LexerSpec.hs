@@ -53,5 +53,6 @@ spec =
         )
         "a/******//*\n\n* /\n// */b/**// *"
         `shouldBe` Right ("a", "b")
+      rl ident "a/*\nb" `shouldBe` Left (Position 5 2 1)
     it "test lines count" $ do
       rl ((,) <$> ident <*> literal) "a\n\r\n " `shouldBe` Left (Position 5 3 1)
