@@ -1,7 +1,4 @@
-type loc = { lnum : int; cnum : int }
-
-type loc2 = loc * loc
-(** Start and end loc. *)
+open Diagn
 
 type stmt =
   | AutoDefs of loc2 * autodef list
@@ -20,8 +17,9 @@ and rexpr =
   | AddrOf of loc2 * lexpr
   | LExpr of loc2 * lexpr
   | BinOp of loc2 * rexpr * binop * rexpr
-  | RelOp of loc2 * rexpr * relop * rexpr
+  | ShortCircOp of loc2 * rexpr * shortcirc_op * rexpr
   | UnOp of loc2 * unop * rexpr
+  | Not of loc2 * rexpr
   | Assign of loc2 * lexpr * rexpr
   | AssignOp of loc2 * lexpr * binop * rexpr
   | Cond of loc2 * rexpr * rexpr * rexpr
@@ -30,9 +28,11 @@ and rexpr =
   | PostInc of loc2 * lexpr
   | PostDec of loc2 * lexpr
 
-and binop = Add | Sub | BitOr | BitAnd
-
-and relop =
+and binop =
+  | Add
+  | Sub
+  | BitOr
+  | BitAnd
   | Eq
   | NEq
   (* signed *)
@@ -46,6 +46,7 @@ and relop =
   | UGEq
   | UGt
 
+and shortcirc_op = And | Or
 and unop = BitNot | Neg
 
 and lexpr =
@@ -86,9 +87,11 @@ and dump_rexpr = function
   | AddrOf (_, l) -> "&" ^ dump_lexpr l
   | BinOp (_, r, op, l) ->
       Printf.sprintf "(%s %s %s)" (dump_rexpr r) (dump_binop op) (dump_rexpr l)
-  | RelOp (_, r, op, l) ->
-      Printf.sprintf "(%s %s %s)" (dump_rexpr r) (dump_relop op) (dump_rexpr l)
+  | ShortCircOp (_, r, op, l) ->
+      Printf.sprintf "(%s %s %s)" (dump_rexpr r) (dump_shortcirc_op op)
+        (dump_rexpr l)
   | UnOp (_, op, opnd) -> dump_unop op ^ dump_rexpr opnd
+  | Not (_, opnd) -> "!" ^ dump_rexpr opnd
   | Assign (_, l, r) -> Printf.sprintf "(%s = %s)" (dump_lexpr l) (dump_rexpr r)
   | AssignOp (_, l, op, r) ->
       Printf.sprintf "(%s %s= %s)" (dump_lexpr l) (dump_binop op) (dump_rexpr r)
@@ -105,8 +108,6 @@ and dump_binop = function
   | Sub -> "-"
   | BitOr -> "|"
   | BitAnd -> "&"
-
-and dump_relop = function
   | Eq -> "=="
   | NEq -> "!="
   | LEq -> ">="
@@ -118,6 +119,7 @@ and dump_relop = function
   | UGEq -> "^>="
   | UGt -> "^>"
 
+and dump_shortcirc_op = function And -> "&&" | Or -> "||"
 and dump_unop = function BitNot -> "~" | Neg -> "-"
 
 and dump_lexpr = function

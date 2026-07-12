@@ -1,5 +1,8 @@
 %{
 
+(* TODO: track position and report on error *)
+
+open Diagn
 open Ast
 open Lexing
 
@@ -45,6 +48,9 @@ let mk_loc (s, e) = (
 %token UGT           (* ^>  *)
 %token ULE           (* ^<= *)
 %token ULT           (* ^<  *)
+%token AND           (* &&  *)
+%token OR            (* ||  *)
+%token NOT           (* !   *)
 %token ASSIGN        (* =   *)
 %token ASSIGN_PLUS   (* +=  *)
 %token ASSIGN_MINUS  (* -=  *)
@@ -59,6 +65,8 @@ let mk_loc (s, e) = (
 
 %right ASSIGN ASSIGN_PLUS ASSIGN_MINUS ASSIGN_BITOR ASSIGN_BITAND
 %right QUEST COLON
+%left OR
+%left AND
 %left EQ NEQ LE LT GE GT UGE UGT ULE ULT
 %left PLUS MINUS BITOR AMPERSAND
 
@@ -124,8 +132,8 @@ rexpr:
     { $1 }
   | rexpr binop rexpr
     { BinOp (mk_loc $sloc, $1, $2, $3) }
-  | rexpr relop rexpr
-    { RelOp (mk_loc $sloc, $1, $2, $3) }
+  | rexpr short_circ_op rexpr
+    { ShortCircOp (mk_loc $sloc, $1, $2, $3) }
   | lexpr ASSIGN rexpr
     { Assign (mk_loc $sloc, $1, $3) }
   | lexpr assign_op rexpr
@@ -159,18 +167,20 @@ rexpr:
   | MINUS     { Sub }
   | BITOR     { BitOr }
   | AMPERSAND { BitAnd }
+  | EQ        { Eq }
+  | NEQ       { NEq }
+  | LE        { LEq }
+  | LT        { Lt }
+  | GE        { GEq }
+  | GT        { Gt }
+  | UGE       { UGEq }
+  | UGT       { UGt }
+  | ULE       { ULEq }
+  | ULT       { ULt }
 
-%inline relop:
-  | EQ  { Eq }
-  | NEQ { NEq }
-  | LE  { LEq }
-  | LT  { Lt }
-  | GE  { GEq }
-  | GT  { Gt }
-  | UGE { UGEq }
-  | UGT { UGt }
-  | ULE { ULEq }
-  | ULT { ULt }
+%inline short_circ_op:
+  | AND       { And }
+  | OR        { Or }
 
 %inline assign_op:
   | ASSIGN_PLUS   { Add }
@@ -193,10 +203,16 @@ atom:
     { AddrOf (mk_loc $sloc, $2) }
   | lexpr
     { LExpr (mk_loc $sloc, $1) }
-  | MINUS atom
-    { UnOp (mk_loc $sloc, Neg, $2) }
-  | BITNOT atom
-    { UnOp (mk_loc $sloc, BitNot, $2) }
+  | unop atom
+    { UnOp (mk_loc $sloc, $1, $2) }
+  | NOT atom
+    { Not (mk_loc $sloc, $2) }
+
+%inline unop:
+  | MINUS
+    { Neg }
+  | BITNOT
+    { BitNot }
 
 lexpr:
   | IDENT
