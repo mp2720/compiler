@@ -1,0 +1,5 @@
+(executable
+ (public_name compiler)
+ (name main)
+ (modes exe)
+ (libraries compiler))
